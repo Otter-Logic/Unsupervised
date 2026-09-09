@@ -27,7 +27,7 @@ import numpy as np
 from sklearn.decomposition import PCA
 from sklearn.mixture import GaussianMixture
 
-OUT = Path(__file__).resolve().parents[2] / "tests" / "OtterLogic.MachineLearning.Tests" / "Fixtures"
+OUT = Path(__file__).resolve().parents[2] / "tests" / "OtterLogic.Unsupervised.Tests" / "Fixtures"
 
 DOF_NAMES = ["Fx", "Fy", "Fz", "Mx", "My", "Mz"]
 
@@ -72,38 +72,12 @@ def standardise(x: np.ndarray) -> np.ndarray:
     return (logged - logged.mean(axis=0)) / logged.std(axis=0)
 
 
-def pca_fixture(x: np.ndarray, whiten: bool) -> dict:
-    pca = PCA(n_components=None, whiten=whiten, svd_solver="full")
-    z = pca.fit_transform(x)
-
-    return {
-        "name": f"pca_{'whiten' if whiten else 'plain'}",
-        "whiten": whiten,
-        "x": x.tolist(),
-        "expected": {
-            "mean": pca.mean_.tolist(),
-            "explained_variance": pca.explained_variance_.tolist(),
-            "explained_variance_ratio": pca.explained_variance_ratio_.tolist(),
-            # Sign is arbitrary in an eigendecomposition, so the C# side applies
-            # a convention (largest-magnitude entry positive) and this applies
-            # the same one before comparing. Without it the test fails on a
-            # difference that means nothing.
-            "components": canonical_signs(pca.components_).tolist(),
-            "transformed": (z * sign_flips(pca.components_)).tolist(),
-        },
-    }
-
-
 def sign_flips(components: np.ndarray) -> np.ndarray:
     """+1 or -1 per component, making the largest-magnitude loading positive."""
     dominant = np.argmax(np.abs(components), axis=1)
     signs = np.sign(components[np.arange(components.shape[0]), dominant])
     signs[signs == 0] = 1.0
     return signs
-
-
-def canonical_signs(components: np.ndarray) -> np.ndarray:
-    return components * sign_flips(components)[:, None]
 
 
 def initial_parameters(x: np.ndarray, k: int, covariance_type: str) -> dict:
@@ -277,18 +251,18 @@ def main() -> None:
     raw, family = make_members()
     prepared = standardise(raw)
 
+    # PCA here is preprocessing, not the thing under test - it is how the EM
+    # fixtures get the whitened input the C# side will also be clustering.
     pca = PCA(n_components=0.99, whiten=True, svd_solver="full")
     whitened = pca.fit_transform(prepared) * sign_flips(pca.components_)
 
     print("writing fixtures:")
-    write(pca_fixture(prepared, whiten=True))
-    write(pca_fixture(prepared, whiten=False))
     write(em_fixture(whitened, k=4, covariance_type="diag"))
     write(em_fixture(whitened, k=4, covariance_type="full"))
     write(em_fixture(whitened, k=3, covariance_type="spherical"))
     write(quality_fixture(raw, family))
     write(sweep_fixture(raw))
-    print(f"\n{raw.shape[0]} members, {raw.shape[1]} columns, "
+    print(f"\n{raw.shape[0]} samples, {raw.shape[1]} columns, "
           f"{pca.n_components_} principal components retained "
           f"({pca.explained_variance_ratio_.sum() * 100:.2f}% of variance)")
 

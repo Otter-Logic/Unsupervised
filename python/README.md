@@ -2,11 +2,9 @@
 
 **No user of the plug-in installs any of this.** Not IronPython, not Rhino 8's
 embedded CPython, not a system interpreter. Everything here runs on a developer's
-machine and stops there; the clustering pipeline that ships is C# end to end.
+machine and stops there; the clustering that ships is C# end to end.
 
-Two jobs, present and future.
-
-## Today: reference fixtures
+## Reference fixtures
 
 scikit-learn is here as a *reference implementation to test the C# against*, not
 as a dependency. `fixtures/make_fixtures.py` writes JSON into the test project;
@@ -34,16 +32,20 @@ separate:
   agree. Matching parameter for parameter here would be a coincidence — these are
   two non-convex optimisers on the same surface.
 
-## Later: training
+PCA appears in this script as *preprocessing*, not as something under test: it is
+how the EM fixtures get the whitened input the C# side will also be clustering.
+The decomposition fixtures themselves live in
+[MachineLearning](https://github.com/Otter-Logic/MachineLearning), next to the
+`PrincipalComponents` they check. Both generators build their input from the same
+`make_members`, which is why the two files look alike at the top.
 
-When learned models arrive — GraphSAGE first — this is where they get trained,
-and `torch` joins `requirements.txt`. The one artefact that crosses into the
-plug-in is a `.onnx` file dropped into `/models`, with a sidecar `.json`
-recording feature order and normalisation. Training never runs inside Rhino; see
-`Rhino3D/docs/machine-learning.md`.
+## No training here
 
-Note the asymmetry, because it is the whole design: a *learned* model has weights
-that had to be found from data the user does not have, so it must be trained here
-and shipped. A Gaussian mixture has no such weights — it computes its parameters
-from whatever is on the wire, every solve — so it is C#, and nothing about it
-comes through this directory.
+This repo holds algorithms that are fitted at solve time, on the data in front of
+them. A Gaussian mixture computes its own parameters from whatever is on the
+wire, every solve — there are no weights to find offline and nothing to ship, so
+nothing here ever produces an `.onnx`.
+
+Learned models, when they arrive, get trained in `MachineLearning/python` and
+cross into the plug-in as a frozen graph. See
+`Rhino3D/docs/machine-learning.md` for that half.

@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>OtterLogic.Unsupervised</RootNamespace>
+    <AssemblyName>OtterLogic.Unsupervised</AssemblyName>
+    <!-- A paradigm repo: it sits above OtterLogic.MachineLearning, which holds
+         the preprocessing and decomposition every paradigm shares, and below the
+         domain toolkits. It references no sibling paradigm and no toolkit - if
+         Supervised ever needs something here, that something moves down into
+         MachineLearning. See docs/architecture.md. -->
+
+    <IsPackable>true</IsPackable>
+    <PackageId>OtterLogic.Unsupervised</PackageId>
+    <Description>Clustering and other unsupervised learning for the OtterLogic Rhino tools - k-means, Gaussian mixtures, HDBSCAN, and the model selection that chooses between them.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/Otter-Logic/Unsupervised</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Otter-Logic/Unsupervised</RepositoryUrl>
+    <PackageTags>rhino;rhino3d;grasshopper;computational-design;machine-learning;clustering</PackageTags>
+
+  </PropertyGroup>
+
+  <!-- Deliberately no package references. An EM loop and a mutual-reachability
+       MST over a handful of columns; MathNet would be carried for arithmetic
+       that is already here. -->
+
+  <!-- A sibling checkout wins; the published package is the fallback. -->
+  <Choose>
+    <When Condition="Exists('$(MSBuildThisFileDirectory)..\..\..\MachineLearning\src\OtterLogic.MachineLearning\OtterLogic.MachineLearning.csproj')">
+      <ItemGroup>
+        <ProjectReference Include="..\..\..\MachineLearning\src\OtterLogic.MachineLearning\OtterLogic.MachineLearning.csproj" />
+      </ItemGroup>
+    </When>
+    <Otherwise>
+      <ItemGroup>
+        <PackageReference Include="OtterLogic.MachineLearning" Version="[$(Version)]" />
+      </ItemGroup>
+    </Otherwise>
+  </Choose>
+
+</Project>
