@@ -1,0 +1,62 @@
+name: build
+
+# Build *and test*, unlike Core, StructuralForm and Rhino3D. Nothing in this
+# repo touches a Rhino API - it is arithmetic over arrays - so the tests need
+# neither Rhino nor a licence and run on a hosted runner exactly as they do
+# locally. That is worth having: these tests are the scikit-learn parity
+# fixtures, and a drift in them is the failure mode that would otherwise reach
+# a user as slightly wrong numbers rather than as a crash.
+#
+# `windows-latest` only because the target framework is net7.0-windows, which
+# follows Core rather than any need of this code. The test project sets
+# RollForward=LatestMajor, so it runs on whatever the runner has.
+#
+# Two siblings, not one. This repo references MachineLearning, and
+# MachineLearning in turn references Core - so Core has to be on disk too even
+# though nothing here names it. Miss it and MachineLearning falls through to a
+# NuGet package that does not exist yet, which fails *restore* and reads as a
+# missing package rather than a missing checkout.
+#
+# Cross-repo checkouts authenticate with OTTER_CI_TOKEN, a PAT with read access
+# to Otter-Logic. The automatic GITHUB_TOKEN is scoped to the one repository
+# running the job, so it can check this repo out but not its siblings - which
+# works only while they are public. The self-checkout keeps GITHUB_TOKEN
+# deliberately: checkout persists whatever token it is given into the local git
+# config, so the PAT goes only where it is needed.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: Unsupervised
+
+      - uses: actions/checkout@v4
+        with:
+          repository: Otter-Logic/Core
+          path: Core
+          token: ${{ secrets.OTTER_CI_TOKEN }}
+
+      - uses: actions/checkout@v4
+        with:
+          repository: Otter-Logic/MachineLearning
+          path: MachineLearning
+          token: ${{ secrets.OTTER_CI_TOKEN }}
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build
+        run: dotnet build Unsupervised/OtterLogic.slnx -c Release
+
+      - name: Test
+        run: dotnet test Unsupervised/OtterLogic.slnx -c Release --no-build
