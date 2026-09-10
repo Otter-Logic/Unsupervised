@@ -5,7 +5,7 @@ using System.Text;
 namespace OtterLogic.Unsupervised.Clustering;
 
 /// <summary>
-/// The outcome of a grouping: which member went where, how sure the model is,
+/// The outcome of a grouping: which sample went where, how sure the model is,
 /// and what each group looks like in the units it came in as.
 /// </summary>
 public sealed class ClusterPipelineResult
@@ -32,14 +32,14 @@ public sealed class ClusterPipelineResult
         InputColumnCount = inputColumnCount;
     }
 
-    /// <summary>Group index per member, 0-based.</summary>
+    /// <summary>Group index per sample, 0-based.</summary>
     public int[] Labels { get; }
 
     /// <summary>Soft membership, n x k. Row sums to one.</summary>
     public double[,] Responsibilities { get; }
 
     /// <summary>
-    /// Highest responsibility per member. Anything much below 0.6 is a member
+    /// Highest responsibility per sample. Anything much below 0.6 is a sample
     /// sitting between two groups, and is worth a look rather than a rubber
     /// stamp.
     /// </summary>
@@ -51,12 +51,12 @@ public sealed class ClusterPipelineResult
     /// <para>
     /// The output that decides whether the tool is useful. A grouping nobody can
     /// name is a grouping nobody will act on, and this is what lets somebody say
-    /// "group three is the high-moment family".
+    /// "group three is the one high in column four".
     /// </para>
     /// </summary>
     public double[,] Centres { get; }
 
-    /// <summary>Fraction of members in each group, by mixing weight.</summary>
+    /// <summary>Fraction of samples in each group, by mixing weight.</summary>
     public double[] GroupShares { get; }
 
     /// <summary>The underlying fit, for BIC, log-likelihood and convergence.</summary>
@@ -71,7 +71,7 @@ public sealed class ClusterPipelineResult
     /// <summary>Number of columns supplied.</summary>
     public int InputColumnCount { get; }
 
-    /// <summary>Member indices bucketed by group, ready to drive geometry downstream.</summary>
+    /// <summary>Sample indices bucketed by group, ready to drive geometry downstream.</summary>
     public int[][] Groups()
     {
         int k = GroupShares.Length;
@@ -96,7 +96,7 @@ public sealed class ClusterPipelineResult
         var text = new StringBuilder();
         var invariant = CultureInfo.InvariantCulture;
 
-        text.AppendLine($"Members      {Labels.Length}");
+        text.AppendLine($"Samples      {Labels.Length}");
         text.AppendLine($"Groups       {GroupShares.Length}");
         text.AppendLine(
             $"Columns      {KeptColumns.Length} of {InputColumnCount} kept"
@@ -116,11 +116,11 @@ public sealed class ClusterPipelineResult
             + $"after {Mixture.Iterations} iterations");
         text.AppendLine($"Parameters   {Mixture.ParameterCount}");
         text.AppendLine($"Log-lik      {Mixture.LogLikelihood.ToString("0.000", invariant)} "
-            + $"({Mixture.MeanLogLikelihood.ToString("0.0000", invariant)} per member)");
+            + $"({Mixture.MeanLogLikelihood.ToString("0.0000", invariant)} per sample)");
         text.AppendLine($"BIC          {Mixture.Bic.ToString("0.000", invariant)}");
         text.AppendLine($"AIC          {Mixture.Aic.ToString("0.000", invariant)}");
         text.AppendLine($"Confidence   mean {Confidence.Average().ToString("0.000", invariant)}, "
-            + $"{Confidence.Count(c => c < 0.6)} member(s) below 0.6");
+            + $"{Confidence.Count(c => c < 0.6)} sample(s) below 0.6");
         text.Append($"Shares       {string.Join(", ", GroupShares.Select(w => w.ToString("0.000", invariant)))}");
 
         return text.ToString();

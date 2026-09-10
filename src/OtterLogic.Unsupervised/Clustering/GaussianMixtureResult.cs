@@ -70,8 +70,8 @@ public sealed class GaussianMixtureResult
     /// <summary>
     /// Bayesian information criterion, lower is better. Penalises parameters by
     /// ln(n), so it prefers fewer components than AIC does — which is usually
-    /// what you want when the components are meant to become real connection
-    /// families somebody has to detail.
+    /// what you want when the components are meant to become real groups
+    /// somebody has to act on.
     /// </summary>
     public double Bic => -2.0 * LogLikelihood + ParameterCount * Math.Log(SampleCount);
 
@@ -84,9 +84,9 @@ public sealed class GaussianMixtureResult
     /// <summary>
     /// The highest responsibility for each sample, between 1/k and 1.
     /// <para>
-    /// Read this as confidence. A member sitting at 0.95 belongs where it was
-    /// put; one at 0.4 is on a boundary between two families and is exactly the
-    /// case an engineer should look at rather than take on trust.
+    /// Read this as confidence. A sample sitting at 0.95 belongs where it was
+    /// put; one at 0.4 is on a boundary between two components and is exactly the
+    /// case somebody should look at rather than take on trust.
     /// </para>
     /// </summary>
     public double[] Confidence() => Posterior.RowMax(Responsibilities);

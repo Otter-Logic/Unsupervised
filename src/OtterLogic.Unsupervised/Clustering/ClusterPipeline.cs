@@ -16,11 +16,11 @@ namespace OtterLogic.Unsupervised.Clustering;
 public static class ClusterPipeline
 {
     /// <summary>
-    /// Groups n members described by d non-negative values each.
+    /// Groups n samples described by d values each.
     /// </summary>
     /// <param name="data">
-    /// n x d. For the design grouping case these are six-degree-of-freedom
-    /// magnitudes per member — three forces and three moments, unsigned.
+    /// n x d raw values, one row per sample. Non-negative if
+    /// <see cref="ClusterPipelineOptions.LogTransform"/> is on.
     /// </param>
     /// <param name="options">Pipeline settings.</param>
     public static ClusterPipelineResult Group(double[,] data, ClusterPipelineOptions options)
@@ -32,10 +32,10 @@ public static class ClusterPipeline
         int d = data.GetLength(1);
 
         if (n < 2)
-            throw new ArgumentException("Need at least two members to group.", nameof(data));
+            throw new ArgumentException("Need at least two samples to group.", nameof(data));
         if (options.Groups > n)
             throw new ArgumentException(
-                $"Cannot ask for {options.Groups} groups from {n} members.", nameof(options));
+                $"Cannot ask for {options.Groups} groups from {n} samples.", nameof(options));
 
         var pipeline = FeaturePipeline.Fit(data, options.LogTransform, options.NormaliseRows, options.Weights);
         var prepared = pipeline.Transform(data);
@@ -70,7 +70,7 @@ public static class ClusterPipeline
     /// <para>
     /// Deliberately does not pick a winner. The lowest BIC is a suggestion, not
     /// an answer: the useful k is usually the one that is both near the elbow and
-    /// means something to whoever has to detail the result, and no criterion
+    /// means something to whoever has to act on the result, and no criterion
     /// knows about the second half of that.
     /// </para>
     /// </summary>

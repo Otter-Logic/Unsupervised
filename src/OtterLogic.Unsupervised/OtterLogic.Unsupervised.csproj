@@ -11,7 +11,7 @@
 
     <IsPackable>true</IsPackable>
     <PackageId>OtterLogic.Unsupervised</PackageId>
-    <Description>Clustering and other unsupervised learning for the OtterLogic Rhino tools - k-means, Gaussian mixtures, HDBSCAN, and the model selection that chooses between them.</Description>
+    <Description>Clustering and other unsupervised learning for the OtterLogic Rhino tools - k-means, Gaussian mixtures, HDBSCAN, spectral and hierarchical clustering, graph message passing, and the model selection that chooses between them.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/Otter-Logic/Unsupervised</PackageProjectUrl>
     <RepositoryUrl>https://github.com/Otter-Logic/Unsupervised</RepositoryUrl>
@@ -19,9 +19,9 @@
 
   </PropertyGroup>
 
-  <!-- Deliberately no package references. An EM loop and a mutual-reachability
-       MST over a handful of columns; MathNet would be carried for arithmetic
-       that is already here. -->
+  <!-- Deliberately no package references. An EM loop, a mutual-reachability
+       MST, a nearest-neighbour chain and a propagation over sparse edges;
+       MathNet would be carried for arithmetic that is already here. -->
 
   <!-- A sibling checkout wins; the published package is the fallback. -->
   <Choose>

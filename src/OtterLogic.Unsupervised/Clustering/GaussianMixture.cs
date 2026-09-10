@@ -200,7 +200,7 @@ public static class GaussianMixture
     /// Diagonal and spherical covariances take a separate code path from full
     /// ones, and not for tidiness: the diagonal log-density costs d operations
     /// per sample per component where the full one costs d squared. At the sizes
-    /// this runs at — thousands of members, ten restarts, a couple of hundred
+    /// this runs at — thousands of samples, ten restarts, a couple of hundred
     /// iterations — that is the difference between a component that keeps up
     /// with a slider and one that does not.
     /// </para>

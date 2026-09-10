@@ -31,6 +31,19 @@ separate:
   itself, ten restarts each, and compare on BIC and on how far the two labellings
   agree. Matching parameter for parameter here would be a coincidence — these are
   two non-convex optimisers on the same surface.
+- **`spectral.json`** asks both questions of spectral clustering at once. The
+  Laplacian eigenvalues are determined by the graph, so they must match a dense
+  eigensolve to rounding; the partition is k-means on the embedding, so it is
+  compared with scikit-learn's by ARI.
+- **`hierarchical.json`** is exact throughout. A dendrogram has no initialisation
+  and no local optimum, so SciPy's `linkage` for all four linkages and
+  scikit-learn's connectivity-constrained `ward_tree` must match merge for merge.
+  The data is tie-free on purpose — a tie in merge distance is decided by
+  implementation detail, and a fixture should not rest on one.
+
+Adding a fixture must leave the existing ones byte-identical. Regenerate, and
+check `git status` shows only the new files — that is the proof nothing already
+pinned has moved.
 
 PCA appears in this script as *preprocessing*, not as something under test: it is
 how the EM fixtures get the whitened input the C# side will also be clustering.

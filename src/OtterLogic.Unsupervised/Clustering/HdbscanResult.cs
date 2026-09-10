@@ -63,7 +63,7 @@ public sealed class HdbscanResult
 
     /// <summary>
     /// Point indices bucketed by cluster, noise excluded. Index c holds the
-    /// members of cluster c.
+    /// points of cluster c.
     /// </summary>
     public int[][] Clusters()
     {

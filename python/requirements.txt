@@ -9,8 +9,12 @@
 numpy>=1.26
 pandas>=2.2
 scikit-learn>=1.5
+# Named directly because the hierarchical and spectral fixtures import it:
+# linkage for the reference dendrograms, csgraph for the Laplacian.
+scipy>=1.11
 
-# Uncomment when graph work starts.
+# Uncomment when a *learned* graph network is trained. The message passing in
+# this repo is fitted at solve time and needs none of it.
 # torch>=2.3
 # onnx>=1.16
 # onnxruntime>=1.18

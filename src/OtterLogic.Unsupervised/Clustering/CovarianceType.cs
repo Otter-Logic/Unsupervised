@@ -6,7 +6,7 @@
 /// This is the bias-variance dial. Parameters per component at d dimensions:
 /// spherical 1, diagonal d, full d(d+1)/2. At d = 6 that is 1, 6 and 21 — so a
 /// full model with k = 8 fits about 220 parameters, which wants a good deal
-/// more than the few hundred members a frame typically has.
+/// more than the few hundred samples a typical input has.
 /// </para>
 /// <para>
 /// <see cref="Diagonal"/> is the default because PCA whitening has already

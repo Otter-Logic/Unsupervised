@@ -204,7 +204,7 @@ public static class KMeans
     /// Draws an index with probability proportional to <paramref name="weights"/>.
     /// Falls back to uniform when every weight is zero, which happens when every
     /// point coincides with a seed already chosen — rare in general, and routine
-    /// when a model repeats the same member hundreds of times.
+    /// when the data repeats the same row hundreds of times.
     /// </summary>
     private static int SampleProportionally(double[] weights, double total, Random rng, int n)
     {

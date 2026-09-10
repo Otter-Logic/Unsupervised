@@ -10,12 +10,19 @@ public sealed record ClusterPipelineOptions
     /// <summary>Number of groups, k.</summary>
     public int Groups { get; init; } = 4;
 
-    /// <summary>Apply log(1 + x) first. On by default, because magnitudes are right-skewed.</summary>
-    public bool LogTransform { get; init; } = true;
+    /// <summary>
+    /// Apply log(1 + x) first. Off by default.
+    /// <para>
+    /// Worth turning on for right-skewed magnitudes, but whether the data is that
+    /// is a claim about what the columns mean — which the caller knows and this
+    /// does not. A default of on would be that claim made on everyone's behalf.
+    /// </para>
+    /// </summary>
+    public bool LogTransform { get; init; }
 
     /// <summary>
-    /// Scale each member to unit length first, keeping only the proportion
-    /// between degrees of freedom. Off by default.
+    /// Scale each sample to unit length first, keeping only the proportion
+    /// between columns. Off by default.
     /// <para>
     /// Turning this on usually means turning <see cref="LogTransform"/> off:
     /// once every row is unit length the values are bounded proportions, and the

@@ -240,6 +240,123 @@ def sweep_fixture(raw: np.ndarray, lo: int = 2, hi: int = 8) -> dict:
     return {"name": "sweep", "minimum": lo, "maximum": hi, "raw": raw.tolist(), "expected": rows}
 
 
+def symmetric_knn(x: np.ndarray, k: int) -> np.ndarray:
+    """The k-nearest-neighbour graph, self excluded, symmetrised as 0.5 * (A + A.T).
+
+    What the C# WeightedGraph.NearestNeighbours builds, and what scikit-learn's
+    SpectralClustering builds from n_neighbors = k + 1 - its graph counts each
+    point as its own first neighbour, then the Laplacian ignores the diagonal.
+    """
+    from sklearn.neighbors import kneighbors_graph
+
+    a = kneighbors_graph(x, n_neighbors=k, mode="connectivity", include_self=False)
+    return (0.5 * (a + a.T)).toarray()
+
+
+def spectral_fixture(k_neighbours: int = 10, noise: float = 0.05, seed: int = 0) -> dict:
+    """Two interleaved crescents: connected, but not compact.
+
+    The case spectral clustering exists for. Each crescent is one path of close
+    neighbours from end to end, so a graph method follows it; but its two ends
+    are far apart and nearer the other crescent's middle, so any method that
+    scores compactness - k-means, a mixture - cuts across both.
+
+    Two questions, as for the mixture. *Exactness*: the Laplacian spectrum of
+    the same graph from a dense eigensolve, which the C# eigenvalues must match.
+    *Quality*: scikit-learn's own labelling, which the C# partition must agree
+    with - not label for label, since numbering is arbitrary, but by ARI.
+
+    The noise level and seed are chosen so the neighbour graph is one connected
+    piece. At a little more noise the crescents start to touch and even
+    scikit-learn recovers them only partly (ARI 0.81 at noise 0.06, seed 3); at a
+    little less, the graph can fall into two components, and then the test would
+    only be checking that a disconnection is found - not that a connected graph
+    is cut in the right place.
+    """
+    from scipy.sparse.csgraph import laplacian
+    from sklearn.cluster import KMeans, SpectralClustering
+    from sklearn.datasets import make_moons
+
+    x, truth = make_moons(n_samples=300, noise=noise, random_state=seed)
+    clusters = 2
+
+    affinity = symmetric_knn(x, k_neighbours)
+    lap = laplacian(affinity, normed=True)
+    spectrum = np.sort(np.linalg.eigvalsh(lap))
+
+    spectral = SpectralClustering(
+        n_clusters=clusters,
+        affinity="nearest_neighbors",
+        n_neighbors=k_neighbours + 1,
+        assign_labels="kmeans",
+        random_state=0,
+    ).fit(x)
+
+    kmeans = KMeans(n_clusters=clusters, n_init=10, random_state=0).fit(x)
+
+    return {
+        "name": "spectral",
+        "clusters": clusters,
+        "neighbours": k_neighbours,
+        "x": x.tolist(),
+        "true_labels": truth.tolist(),
+        "expected": {
+            "laplacian_eigenvalues": spectrum[: clusters + 1].tolist(),
+            "labels": spectral.labels_.tolist(),
+            "kmeans_labels": kmeans.labels_.tolist(),
+        },
+    }
+
+
+def hierarchical_fixture(seed: int = 6, k_neighbours: int = 8) -> dict:
+    """SciPy's linkage for every linkage, and scikit-learn's constrained Ward.
+
+    Both are exact checks. Hierarchical clustering has no initialisation and no
+    local optimum - given the data and the linkage the tree is determined - so
+    the C# merges must match merge for merge, and the distances to rounding.
+
+    The data is small, continuous and tie-free on purpose. A tie in merge
+    distance is decided by implementation detail rather than by the data, and a
+    fixture should not rest on one.
+    """
+    from scipy.cluster.hierarchy import linkage
+    from scipy.sparse.csgraph import connected_components
+    from sklearn.cluster import ward_tree
+    from sklearn.datasets import make_blobs
+
+    # Spread enough that the neighbour graph is one piece. scikit-learn would
+    # otherwise join the pieces itself before building the tree, by a rule the
+    # C# side deliberately does not copy.
+    x, _ = make_blobs(n_samples=60, n_features=3, centers=4, cluster_std=1.8, random_state=seed)
+
+    trees = {}
+    for method in ["ward", "complete", "average", "single"]:
+        z = linkage(x, method=method, metric="euclidean")
+        trees[method] = z.tolist()
+
+    connectivity = symmetric_knn(x, k_neighbours)
+    count, _ = connected_components(connectivity, directed=False)
+    if count != 1:
+        raise ValueError(f"constrained fixture needs a connected graph; got {count} components")
+
+    rows, cols = np.nonzero(np.triu(connectivity, k=1))
+    children, _, _, _, distances = ward_tree(x, connectivity=connectivity, return_distance=True)
+
+    return {
+        "name": "hierarchical",
+        "x": x.tolist(),
+        "neighbours": k_neighbours,
+        "edges": [[int(a), int(b)] for a, b in zip(rows, cols)],
+        "expected": {
+            "linkage": trees,
+            "constrained_ward": {
+                "children": children.tolist(),
+                "distances": distances.tolist(),
+            },
+        },
+    }
+
+
 def write(fixture: dict) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     path = OUT / f"{fixture['name']}.json"
@@ -262,6 +379,8 @@ def main() -> None:
     write(em_fixture(whitened, k=3, covariance_type="spherical"))
     write(quality_fixture(raw, family))
     write(sweep_fixture(raw))
+    write(spectral_fixture())
+    write(hierarchical_fixture())
     print(f"\n{raw.shape[0]} samples, {raw.shape[1]} columns, "
           f"{pca.n_components_} principal components retained "
           f"({pca.explained_variance_ratio_.sum() * 100:.2f}% of variance)")

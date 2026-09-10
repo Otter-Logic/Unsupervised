@@ -11,7 +11,7 @@ public sealed record HdbscanOptions
     /// noise.
     /// <para>
     /// The one setting that matters, and the one that reads in the units of the
-    /// problem: "fewer than this many members is not a family worth detailing".
+    /// problem: "fewer than this many samples is not a group worth acting on".
     /// Raise it and small groups dissolve into noise; lower it and the fit starts
     /// naming coincidences.
     /// </para>

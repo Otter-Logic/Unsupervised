@@ -2,7 +2,7 @@
 
 /// <summary>
 /// The knobs on the EM fit. Defaults are chosen for a few hundred to a few
-/// thousand members in six whitened dimensions.
+/// thousand samples in a handful of whitened dimensions.
 /// </summary>
 public sealed record GaussianMixtureOptions
 {
@@ -46,7 +46,7 @@ public sealed record GaussianMixtureOptions
     /// Not a nicety. Without a floor a component can collapse onto a single
     /// point, its variance heads to zero and the likelihood to infinity, and the
     /// fit ends in NaN. That failure needs duplicate or near-duplicate rows to
-    /// trigger it, and a structural model is full of identical members.
+    /// trigger it, and anything built from repeated elements is full of them.
     /// </para>
     /// </summary>
     public double RegularisationFloor { get; init; } = 1e-6;

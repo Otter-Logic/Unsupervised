@@ -8,10 +8,10 @@
 /// <see cref="GaussianMixture"/> is that it answers a question neither can. Both
 /// of those must put every point somewhere and must be told how many groups to
 /// look for. This is told neither: it finds however many dense regions the data
-/// supports, of whatever shape, and labels everything else <c>-1</c>. On
-/// structural demand data that matters, because a handful of members really are
-/// one-offs, and a model that forces them into the nearest family produces a
-/// family nobody can detail.
+/// supports, of whatever shape, and labels everything else <c>-1</c>. On real
+/// data that matters, because a handful of samples really are one-offs, and a
+/// model that forces them into the nearest group produces a group nobody can make
+/// sense of.
 /// </para>
 /// <para>
 /// The cost is that density is a weaker signal than a fitted model. Where the
@@ -24,7 +24,7 @@
 /// <c>hdbscan</c> library: core distances, a mutual reachability MST, a
 /// condensed cluster tree, and excess-of-mass selection. The MST is built by
 /// Prim's in O(n^2) with no distance matrix held in memory — at a few thousand
-/// members in three principal components that is milliseconds and a few
+/// samples in three principal components that is milliseconds and a few
 /// kilobytes, and it avoids the spatial index the reference needs at scale.
 /// </para>
 /// </summary>
@@ -37,7 +37,8 @@ public static class Hdbscan
     /// subtract one lambda from another and would produce NaN. A large finite
     /// value keeps the arithmetic well defined and preserves the ordering, which
     /// is all the extraction needs. Duplicate rows are not a contrived input
-    /// here — a structural model repeats identical members constantly.
+    /// here — anything built from repeated elements repeats identical rows
+    /// constantly.
     /// </para>
     /// </summary>
     private const double MaximumLambda = 1e12;
