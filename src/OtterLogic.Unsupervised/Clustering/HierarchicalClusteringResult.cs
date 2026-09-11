@@ -92,7 +92,7 @@ public sealed class HierarchicalClusteringResult
             roots[i] = node;
         }
 
-        return Labelling.Canonical(roots);
+        return ClusterLabels.Canonical(roots);
     }
 
     /// <summary>

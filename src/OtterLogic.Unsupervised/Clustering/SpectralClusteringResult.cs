@@ -113,8 +113,8 @@ public sealed class SpectralClusteringResult
     public int IsolatedCount => Labels.Count(l => l < 0);
 
     /// <summary>Sample indices bucketed by cluster, unplaced samples excluded.</summary>
-    public int[][] Clusters() => Labelling.Buckets(Labels, ClusterCount);
+    public int[][] Clusters() => ClusterLabels.Members(Labels, ClusterCount);
 
     /// <summary>Indices of the samples the graph connects to nothing.</summary>
-    public int[] Isolated() => Enumerable.Range(0, Labels.Length).Where(i => Labels[i] < 0).ToArray();
+    public int[] Isolated() => ClusterLabels.Unplaced(Labels);
 }

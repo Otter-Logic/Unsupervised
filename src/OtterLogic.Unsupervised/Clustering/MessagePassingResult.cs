@@ -50,5 +50,5 @@ public sealed class MessagePassingResult
     public int SampleCount => Labels.Length;
 
     /// <summary>Sample indices bucketed by cluster.</summary>
-    public int[][] Clusters() => Labelling.Buckets(Labels, ClusterCount);
+    public int[][] Clusters() => ClusterLabels.Members(Labels, ClusterCount);
 }

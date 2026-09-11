@@ -60,22 +60,10 @@ public sealed class ClusterSelection
     public int SampleCount => Labels.Length;
 
     /// <summary>Samples the chosen model declined to place. Only HDBSCAN can produce these.</summary>
-    public int[] Unassigned()
-        => Enumerable.Range(0, Labels.Length).Where(i => Labels[i] < 0).ToArray();
+    public int[] Unassigned() => ClusterLabels.Unplaced(Labels);
 
     /// <summary>Sample indices bucketed by cluster, unassigned samples excluded.</summary>
-    public int[][] Members()
-    {
-        var buckets = new List<int>[Groups];
-        for (int g = 0; g < Groups; g++)
-            buckets[g] = new List<int>();
-
-        for (int i = 0; i < Labels.Length; i++)
-            if (Labels[i] >= 0)
-                buckets[Labels[i]].Add(i);
-
-        return buckets.Select(b => b.ToArray()).ToArray();
-    }
+    public int[][] Members() => ClusterLabels.Members(Labels, Groups);
 
     /// <summary>
     /// Cluster centres in <see cref="Data"/>'s own space, one row per cluster,
@@ -87,37 +75,7 @@ public sealed class ClusterSelection
     /// it.
     /// </para>
     /// </summary>
-    public double[,] GroupCentres()
-    {
-        int n = Data.GetLength(0);
-        int width = Data.GetLength(1);
-        int groups = Groups;
-
-        var centres = new double[groups, width];
-        var counts = new int[groups];
-
-        for (int i = 0; i < n; i++)
-        {
-            int g = Labels[i];
-            if (g < 0)
-                continue;
-
-            counts[g]++;
-            for (int j = 0; j < width; j++)
-                centres[g, j] += Data[i, j];
-        }
-
-        for (int g = 0; g < groups; g++)
-        {
-            if (counts[g] == 0)
-                continue;
-
-            for (int j = 0; j < width; j++)
-                centres[g, j] /= counts[g];
-        }
-
-        return centres;
-    }
+    public double[,] GroupCentres() => ClusterLabels.Means(Data, Labels, Groups);
 
     /// <summary>
     /// How all three models scored, as a fixed-width block. The half of a report

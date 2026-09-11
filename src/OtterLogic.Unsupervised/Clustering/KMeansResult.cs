@@ -46,16 +46,5 @@ public sealed class KMeansResult
     public int ClusterCount => Centroids.GetLength(0);
 
     /// <summary>Sample indices bucketed by cluster, ready to drive geometry downstream.</summary>
-    public int[][] Clusters()
-    {
-        int k = ClusterCount;
-        var buckets = new List<int>[k];
-        for (int c = 0; c < k; c++)
-            buckets[c] = new List<int>();
-
-        for (int i = 0; i < Labels.Length; i++)
-            buckets[Labels[i]].Add(i);
-
-        return buckets.Select(b => b.ToArray()).ToArray();
-    }
+    public int[][] Clusters() => ClusterLabels.Members(Labels, ClusterCount);
 }

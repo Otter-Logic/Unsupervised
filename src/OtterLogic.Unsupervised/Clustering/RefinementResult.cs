@@ -54,8 +54,8 @@ public sealed class RefinementResult
 
     /// <summary>Samples with no labelled sample within reach, still unplaced.</summary>
     public int[] Unreached()
-        => Enumerable.Range(0, Labels.Length).Where(i => Labels[i] < 0).ToArray();
+        => ClusterLabels.Unplaced(Labels);
 
     /// <summary>Sample indices bucketed by refined cluster, unreached samples excluded.</summary>
-    public int[][] Clusters() => Labelling.Buckets(Labels, ClusterCount);
+    public int[][] Clusters() => ClusterLabels.Members(Labels, ClusterCount);
 }

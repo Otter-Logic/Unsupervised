@@ -1,3 +1,4 @@
+using OtterLogic.MachineLearning.Distances;
 using OtterLogic.MachineLearning.Graphs;
 
 namespace OtterLogic.Unsupervised.Clustering;
@@ -51,15 +52,79 @@ public static class HierarchicalClustering
         if (n < 2)
             throw new ArgumentException("Need at least two samples to build a hierarchy.", nameof(x));
 
+        CheckPairs(n, nameof(x));
+
+        var distances = new double[(long)n * (n - 1) / 2];
+        for (int i = 0; i < n; i++)
+            for (int j = i + 1; j < n; j++)
+                distances[Condensed(n, i, j)] = Euclidean.Between(x, i, x, j);
+
+        var merges = NearestNeighbourChain(distances, n, options.Linkage);
+        return new HierarchicalClusteringResult(merges, n, options.Linkage, 1);
+    }
+
+    /// <summary>
+    /// Builds the full tree from a dissimilarity between every pair of samples,
+    /// rather than from coordinates.
+    /// <para>
+    /// For when "how different are these two" is not a distance between points —
+    /// a ratio, a largest difference in any one column, a judgement a toolkit
+    /// makes about its own data. Complete, average and single linkage are defined
+    /// for any dissimilarity, so the tree means what it always means: cut by
+    /// complete linkage at h and no two samples in a cluster are more than h
+    /// apart by that measure. Ward is refused: its update assumes Euclidean
+    /// distance, and on anything else the heights it reports are not the variance
+    /// they claim to be.
+    /// </para>
+    /// </summary>
+    /// <param name="count">Number of samples, at least two.</param>
+    /// <param name="dissimilarity">
+    /// How different samples i and j are, for i &lt; j: finite, zero or more, and
+    /// symmetric in meaning. Asked once per pair.
+    /// </param>
+    /// <param name="options">Fit settings. Complete, average or single linkage.</param>
+    public static HierarchicalClusteringResult Fit(
+        int count, Func<int, int, double> dissimilarity, HierarchicalClusteringOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(dissimilarity);
+        ArgumentNullException.ThrowIfNull(options);
+
+        if (count < 2)
+            throw new ArgumentException("Need at least two samples to build a hierarchy.", nameof(count));
+        if (options.Linkage == Linkage.Ward)
+            throw new ArgumentException(
+                "Ward linkage needs Euclidean distances between points, not a general dissimilarity. "
+                + "Use complete, average or single linkage.", nameof(options));
+
+        CheckPairs(count, nameof(count));
+
+        var distances = new double[(long)count * (count - 1) / 2];
+        for (int i = 0; i < count; i++)
+        {
+            for (int j = i + 1; j < count; j++)
+            {
+                double value = dissimilarity(i, j);
+                if (!double.IsFinite(value) || value < 0.0)
+                    throw new ArgumentException(
+                        $"Dissimilarity between {i} and {j} is {value}; it must be finite and not negative.",
+                        nameof(dissimilarity));
+
+                distances[Condensed(count, i, j)] = value;
+            }
+        }
+
+        var merges = NearestNeighbourChain(distances, count, options.Linkage);
+        return new HierarchicalClusteringResult(merges, count, options.Linkage, 1);
+    }
+
+    private static void CheckPairs(int n, string parameter)
+    {
         long pairs = (long)n * (n - 1) / 2;
         if (pairs > MaximumPairs)
             throw new ArgumentException(
                 $"{n} samples need {pairs:N0} pairwise distances, more than an unconstrained tree "
                 + "should hold in memory. Pass a connectivity graph — a nearest-neighbour graph "
-                + "will do — and the fit needs memory only per edge.", nameof(x));
-
-        var merges = NearestNeighbourChain(x, options.Linkage);
-        return new HierarchicalClusteringResult(merges, n, options.Linkage, 1);
+                + "will do — and the fit needs memory only per edge.", parameter);
     }
 
     /// <summary>
@@ -101,17 +166,11 @@ public static class HierarchicalClustering
     /// distance at the end, then renumbered into the dendrogram layout.
     /// </para>
     /// </summary>
-    private static ClusterMerge[] NearestNeighbourChain(double[,] x, Linkage linkage)
+    /// <param name="distances">The condensed upper triangle, SciPy's layout. Overwritten as clusters merge.</param>
+    /// <param name="n">Number of samples.</param>
+    /// <param name="linkage">How the distance to a merged cluster is updated.</param>
+    private static ClusterMerge[] NearestNeighbourChain(double[] distances, int n, Linkage linkage)
     {
-        int n = x.GetLength(0);
-        int d = x.GetLength(1);
-
-        // Condensed upper triangle, SciPy's layout.
-        var distances = new double[(long)n * (n - 1) / 2];
-        for (int i = 0; i < n; i++)
-            for (int j = i + 1; j < n; j++)
-                distances[Condensed(n, i, j)] = Math.Sqrt(KMeans.SquaredDistance(x, i, x, j, d));
-
         // A slot holds a cluster, named after one of its samples; zero size means
         // the slot has been merged away.
         var size = new int[n];
@@ -491,7 +550,7 @@ public static class HierarchicalClustering
             {
                 foreach (int j in _members[b]!)
                 {
-                    double distance = Math.Sqrt(KMeans.SquaredDistance(_x, i, _x, j, _d));
+                    double distance = Euclidean.Between(_x, i, _x, j);
                     switch (_linkage)
                     {
                         case Linkage.Single:

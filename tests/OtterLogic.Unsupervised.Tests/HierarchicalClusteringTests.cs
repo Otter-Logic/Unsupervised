@@ -152,6 +152,36 @@ public sealed class HierarchicalClusteringTests
         _output.WriteLine($"threshold {threshold:F4} gives 4 clusters");
     }
 
+    /// <summary>
+    /// Handed the Euclidean distances as a dissimilarity, the tree must be the one
+    /// built from the coordinates, merge for merge — the dissimilarity overload
+    /// runs the same chain on the same numbers, so any difference is a bug in how
+    /// the pairs are laid out.
+    /// </summary>
+    [Theory]
+    [InlineData(Linkage.Complete)]
+    [InlineData(Linkage.Average)]
+    [InlineData(Linkage.Single)]
+    public void DissimilarityOverload_MatchesTheCoordinates(Linkage linkage)
+    {
+        var x = Fixture.Load("hierarchical").Matrix("x");
+        int n = x.GetLength(0), d = x.GetLength(1);
+        var options = new HierarchicalClusteringOptions { Linkage = linkage };
+
+        var fromPoints = HierarchicalClustering.Fit(x, options);
+        var fromPairs = HierarchicalClustering.Fit(n, (i, j) => Math.Sqrt(Enumerable.Range(0, d).Sum(c => (x[i, c] - x[j, c]) * (x[i, c] - x[j, c]))), options);
+
+        Assert.Equal(fromPoints.Merges, fromPairs.Merges);
+    }
+
+    [Fact]
+    public void DissimilarityOverload_RefusesWard()
+    {
+        var error = Assert.Throws<ArgumentException>(() =>
+            HierarchicalClustering.Fit(4, (i, j) => 1.0, new HierarchicalClusteringOptions { Linkage = Linkage.Ward }));
+        Assert.Contains("Euclidean", error.Message);
+    }
+
     private static WeightedGraph EdgesOf(Fixture fixture)
     {
         var edges = fixture.Matrix("edges");

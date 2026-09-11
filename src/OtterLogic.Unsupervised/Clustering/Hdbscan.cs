@@ -1,4 +1,6 @@
-﻿namespace OtterLogic.Unsupervised.Clustering;
+﻿using OtterLogic.MachineLearning.Distances;
+
+namespace OtterLogic.Unsupervised.Clustering;
 
 /// <summary>
 /// Hierarchical density-based clustering — HDBSCAN, by mutual reachability,
@@ -72,41 +74,22 @@ public static class Hdbscan
     /// Distance from each point to its k-th nearest neighbour, counting itself.
     /// <para>
     /// This is the density estimate the whole algorithm rests on: a small core
-    /// distance means the point sits somewhere crowded. Kept as a k-element
-    /// insertion window rather than a sort, because k is small and n is not.
+    /// distance means the point sits somewhere crowded. Counting itself, the k-th
+    /// point is the (k − 1)-th other one, and for k of one it is the point itself.
     /// </para>
     /// </summary>
     private static double[] CoreDistances(double[,] x, int minSamples)
     {
         int n = x.GetLength(0);
-        int d = x.GetLength(1);
         int k = Math.Min(minSamples, n);
 
+        if (k < 2)
+            return new double[n];
+
+        var nearest = Euclidean.Nearest(x, k - 1).Distance;
         var core = new double[n];
-        var window = new double[k];
-
         for (int i = 0; i < n; i++)
-        {
-            Array.Fill(window, double.MaxValue);
-
-            for (int j = 0; j < n; j++)
-            {
-                double distance = Math.Sqrt(KMeans.SquaredDistance(x, i, x, j, d));
-                if (distance >= window[k - 1])
-                    continue;
-
-                int position = k - 1;
-                while (position > 0 && window[position - 1] > distance)
-                {
-                    window[position] = window[position - 1];
-                    position--;
-                }
-
-                window[position] = distance;
-            }
-
-            core[i] = window[k - 1];
-        }
+            core[i] = nearest[i, k - 2];
 
         return core;
     }
@@ -128,7 +111,6 @@ public static class Hdbscan
     private static (int A, int B, double Weight)[] MinimumSpanningTree(double[,] x, double[] core)
     {
         int n = x.GetLength(0);
-        int d = x.GetLength(1);
 
         var inTree = new bool[n];
         var cheapest = new double[n];
@@ -166,7 +148,7 @@ public static class Hdbscan
                 if (inTree[v])
                     continue;
 
-                double distance = Math.Sqrt(KMeans.SquaredDistance(x, next, x, v, d));
+                double distance = Euclidean.Between(x, next, x, v);
                 double reachability = Math.Max(distance, Math.Max(core[next], core[v]));
 
                 if (reachability < cheapest[v])

@@ -49,18 +49,14 @@ public static class ClusterPipeline
             forFitting = pca.Transform(prepared);
         }
 
-        var mixture = GaussianMixture.Fit(forFitting, options.ToMixtureOptions());
-        var order = StableOrder(mixture);
+        // Largest first, so a small change upstream does not permute the groups.
+        var mixture = GaussianMixture.Fit(forFitting, options.ToMixtureOptions()).OrderedByWeight();
 
-        var responsibilities = Reorder(mixture.Responsibilities, order);
-        var labels = Posterior.ArgMax(responsibilities);
-        var confidence = Posterior.RowMax(responsibilities);
-        var shares = order.Select(c => mixture.MixingWeights[c]).ToArray();
-
-        var centres = BackTransform(mixture.Means, order, pca, pipeline);
+        var inPreparedSpace = pca is null ? mixture.Means : pca.InverseTransform(mixture.Means);
+        var centres = pipeline.InverseTransform(inPreparedSpace);
 
         return new ClusterPipelineResult(
-            labels, responsibilities, confidence, centres, shares,
+            mixture.Labels(), mixture.Responsibilities, mixture.Confidence(), centres, mixture.MixingWeights,
             mixture, pca, pipeline.KeptColumns, d);
     }
 
@@ -104,53 +100,6 @@ public static class ClusterPipeline
         }
 
         return candidates;
-    }
-
-    /// <summary>
-    /// Orders components by descending mixing weight.
-    /// <para>
-    /// Not cosmetic. EM labels its components in whatever order initialisation
-    /// happened to produce, so a small change upstream can permute them — group
-    /// zero becomes group two — and every colour and geometry assignment
-    /// downstream jumps for no reason a user can see. Sorting on a property of
-    /// the fit rather than on its history is what stops that.
-    /// </para>
-    /// </summary>
-    private static int[] StableOrder(GaussianMixtureResult mixture)
-    {
-        int k = mixture.ComponentCount;
-        return Enumerable.Range(0, k)
-            .OrderByDescending(c => mixture.MixingWeights[c])
-            .ThenBy(c => c)
-            .ToArray();
-    }
-
-    private static double[,] Reorder(double[,] responsibilities, int[] order)
-    {
-        int n = responsibilities.GetLength(0);
-        int k = order.Length;
-        var reordered = new double[n, k];
-
-        for (int i = 0; i < n; i++)
-            for (int c = 0; c < k; c++)
-                reordered[i, c] = responsibilities[i, order[c]];
-
-        return reordered;
-    }
-
-    private static double[,] BackTransform(
-        double[,] means, int[] order, PrincipalComponents? pca, FeaturePipeline pipeline)
-    {
-        int k = order.Length;
-        int width = means.GetLength(1);
-
-        var ordered = new double[k, width];
-        for (int c = 0; c < k; c++)
-            for (int j = 0; j < width; j++)
-                ordered[c, j] = means[order[c], j];
-
-        var inPreparedSpace = pca is null ? ordered : pca.InverseTransform(ordered);
-        return pipeline.InverseTransform(inPreparedSpace);
     }
 }
 

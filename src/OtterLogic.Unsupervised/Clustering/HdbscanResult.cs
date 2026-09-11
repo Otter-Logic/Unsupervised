@@ -65,20 +65,8 @@ public sealed class HdbscanResult
     /// Point indices bucketed by cluster, noise excluded. Index c holds the
     /// points of cluster c.
     /// </summary>
-    public int[][] Clusters()
-    {
-        var buckets = new List<int>[ClusterCount];
-        for (int c = 0; c < ClusterCount; c++)
-            buckets[c] = new List<int>();
-
-        for (int i = 0; i < Labels.Length; i++)
-            if (Labels[i] >= 0)
-                buckets[Labels[i]].Add(i);
-
-        return buckets.Select(b => b.ToArray()).ToArray();
-    }
+    public int[][] Clusters() => ClusterLabels.Members(Labels, ClusterCount);
 
     /// <summary>Indices of the points left as noise.</summary>
-    public int[] Noise()
-        => Enumerable.Range(0, Labels.Length).Where(i => Labels[i] < 0).ToArray();
+    public int[] Noise() => ClusterLabels.Unplaced(Labels);
 }

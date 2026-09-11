@@ -162,7 +162,7 @@ public static class SpectralClustering
                 embedding[placed[i], c] = embedded[i, c];
         }
 
-        var labels = Labelling.Canonical(raw, out var mapping);
+        var labels = ClusterLabels.Canonical(raw, out var mapping);
 
         return new SpectralClusteringResult(
             labels, mapping.Count, embedding, eigenvalues, components,

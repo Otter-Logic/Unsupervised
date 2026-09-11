@@ -1,3 +1,4 @@
+using OtterLogic.MachineLearning.Distances;
 using OtterLogic.MachineLearning.Graphs;
 
 namespace OtterLogic.Unsupervised.Clustering;
@@ -56,22 +57,11 @@ public static class Affinity
         ArgumentNullException.ThrowIfNull(x);
 
         int n = graph.NodeCount;
-        int d = x.GetLength(1);
         if (x.GetLength(0) != n)
             throw new ArgumentException(
                 $"The graph has {n} nodes but the features have {x.GetLength(0)} rows.", nameof(x));
 
-        double Distance(int a, int b)
-        {
-            double sum = 0.0;
-            for (int j = 0; j < d; j++)
-            {
-                double delta = x[a, j] - x[b, j];
-                sum += delta * delta;
-            }
-
-            return Math.Sqrt(sum);
-        }
+        double Distance(int a, int b) => Euclidean.Between(x, a, x, b);
 
         var positive = new List<double>(2 * graph.EdgeCount);
         var local = new double[n];

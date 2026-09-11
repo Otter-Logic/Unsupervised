@@ -1,4 +1,6 @@
-﻿namespace OtterLogic.Unsupervised.Clustering;
+﻿using OtterLogic.MachineLearning.Distances;
+
+namespace OtterLogic.Unsupervised.Clustering;
 
 /// <summary>
 /// Internal validation measures — how good a partition looks using only the data
@@ -40,11 +42,10 @@ public static class ClusterQuality
         ArgumentNullException.ThrowIfNull(x);
         ArgumentNullException.ThrowIfNull(labels);
 
-        int d = x.GetLength(1);
-        var members = Members(labels);
+        var members = ClusterLabels.Members(labels);
         int clusterCount = members.Length;
 
-        if (members.Count(m => m.Count > 0) < 2)
+        if (members.Count(m => m.Length > 0) < 2)
             return 0.0;
 
         double total = 0.0;
@@ -60,27 +61,27 @@ public static class ClusterQuality
 
             // A cluster of one has no within-cluster distance to speak of.
             // Convention, and scikit-learn's, is to score it zero.
-            if (members[own].Count < 2)
+            if (members[own].Length < 2)
                 continue;
 
             double inside = 0.0;
             foreach (int j in members[own])
                 if (j != i)
-                    inside += Math.Sqrt(KMeans.SquaredDistance(x, i, x, j, d));
+                    inside += Euclidean.Between(x, i, x, j);
 
-            inside /= members[own].Count - 1;
+            inside /= members[own].Length - 1;
 
             double nearest = double.MaxValue;
             for (int c = 0; c < clusterCount; c++)
             {
-                if (c == own || members[c].Count == 0)
+                if (c == own || members[c].Length == 0)
                     continue;
 
                 double outside = 0.0;
                 foreach (int j in members[c])
-                    outside += Math.Sqrt(KMeans.SquaredDistance(x, i, x, j, d));
+                    outside += Euclidean.Between(x, i, x, j);
 
-                outside /= members[c].Count;
+                outside /= members[c].Length;
                 if (outside < nearest)
                     nearest = outside;
             }
@@ -116,33 +117,22 @@ public static class ClusterQuality
         ArgumentNullException.ThrowIfNull(x);
         ArgumentNullException.ThrowIfNull(labels);
 
-        int d = x.GetLength(1);
-        var members = Members(labels);
+        var members = ClusterLabels.Members(labels);
 
-        var populated = Enumerable.Range(0, members.Length).Where(c => members[c].Count > 0).ToArray();
+        var populated = Enumerable.Range(0, members.Length).Where(c => members[c].Length > 0).ToArray();
         if (populated.Length < 2)
             return double.NaN;
 
-        var centroids = new double[members.Length, d];
+        var centroids = ClusterLabels.Means(x, labels, members.Length);
         var spread = new double[members.Length];
-
-        foreach (int c in populated)
-        {
-            foreach (int i in members[c])
-                for (int j = 0; j < d; j++)
-                    centroids[c, j] += x[i, j];
-
-            for (int j = 0; j < d; j++)
-                centroids[c, j] /= members[c].Count;
-        }
 
         foreach (int c in populated)
         {
             double sum = 0.0;
             foreach (int i in members[c])
-                sum += Math.Sqrt(KMeans.SquaredDistance(x, i, centroids, c, d));
+                sum += Euclidean.Between(x, i, centroids, c);
 
-            spread[c] = sum / members[c].Count;
+            spread[c] = sum / members[c].Length;
         }
 
         double total = 0.0;
@@ -155,7 +145,7 @@ public static class ClusterQuality
                 if (a == b)
                     continue;
 
-                double gap = Math.Sqrt(KMeans.SquaredDistance(centroids, a, centroids, b, d));
+                double gap = Euclidean.Between(centroids, a, centroids, b);
                 if (gap <= 0.0)
                     continue;
 
@@ -166,27 +156,5 @@ public static class ClusterQuality
         }
 
         return total / populated.Length;
-    }
-
-    /// <summary>
-    /// Point indices per cluster, ignoring negative labels. The array is indexed
-    /// by label, so it can contain empty entries where a label went unused.
-    /// </summary>
-    private static List<int>[] Members(int[] labels)
-    {
-        int width = 0;
-        foreach (int label in labels)
-            if (label + 1 > width)
-                width = label + 1;
-
-        var members = new List<int>[width];
-        for (int c = 0; c < width; c++)
-            members[c] = new List<int>();
-
-        for (int i = 0; i < labels.Length; i++)
-            if (labels[i] >= 0)
-                members[labels[i]].Add(i);
-
-        return members;
     }
 }

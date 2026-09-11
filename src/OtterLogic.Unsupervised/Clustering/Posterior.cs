@@ -3,10 +3,9 @@
 /// <summary>
 /// Reductions over a responsibility matrix.
 /// <para>
-/// Shared because the pipeline reorders components before returning them, so it
-/// needs these over its own reordered matrix rather than the one the fit
-/// produced — and two copies of an argmax is two places for the tie-breaking to
-/// drift apart.
+/// Shared because every soft method ends the same way — a mixture, message
+/// passing, a refinement — and two copies of an argmax is two places for the
+/// tie-breaking to drift apart.
 /// </para>
 /// </summary>
 internal static class Posterior
@@ -49,5 +48,32 @@ internal static class Posterior
         }
 
         return maxima;
+    }
+
+    /// <summary>Largest column per row, first on a tie, or -1 for a row with nothing in it.</summary>
+    internal static int[] ArgMaxOrNone(double[,] memberships)
+    {
+        int n = memberships.GetLength(0);
+        int k = memberships.GetLength(1);
+        var labels = new int[n];
+
+        for (int i = 0; i < n; i++)
+        {
+            int best = -1;
+            double bestValue = 0.0;
+
+            for (int c = 0; c < k; c++)
+            {
+                if (memberships[i, c] > bestValue)
+                {
+                    bestValue = memberships[i, c];
+                    best = c;
+                }
+            }
+
+            labels[i] = best;
+        }
+
+        return labels;
     }
 }

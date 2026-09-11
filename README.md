@@ -21,7 +21,7 @@ has, one layer up.
 
 ## What is here
 
-Six clustering methods, and a seventh thing that chooses between three of them.
+Seven clustering methods, and an eighth thing that chooses between three of them.
 
 | | Told how many? | Every sample placed? | Clusters on | Uses a graph? |
 |---|---|---|---|---|
@@ -31,6 +31,7 @@ Six clustering methods, and a seventh thing that chooses between three of them.
 | `SpectralClustering` | yes | all but isolated samples | **connectivity** — paths of strong edges | optional |
 | `HierarchicalClustering` | **no — cut afterwards** | yes | a whole nested tree | optional |
 | `MessagePassing` | yes | yes | features smoothed over neighbours | **yes** |
+| `RatioClustering` | **no — follows from a share** | yes | bounded ratio spread in every column | no |
 
 They are not six implementations of one idea. Each assumes something different
 about what a cluster is, and which assumption holds is a property of the data.
@@ -49,7 +50,10 @@ fall where related samples stop behaving alike.
   land together whatever shape they made in feature space. Reports the
   eigenvalues and the eigengap, which say whether k was a natural number to ask for.
 - **`HierarchicalClustering`** builds the full dendrogram — Ward, complete,
-  average or single linkage — and cuts it by count or by distance afterwards. Fine
+  average or single linkage — and cuts it by count or by distance afterwards.
+  Complete, average and single linkage also take any dissimilarity in place of
+  coordinates — a ratio, a largest gap in one column — for a toolkit whose idea of
+  "different" is not a distance between points. Fine
   cuts are guaranteed to nest inside coarse ones. With a graph, every cluster at
   every level is one connected piece.
 - **`MessagePassing`** is the training-free half of a graph neural network:
@@ -59,6 +63,18 @@ fall where related samples stop behaving alike.
   left unplaced, and reporting exactly which samples changed. A *learned* graph
   network is a trained model and belongs in DeepLearning; what this produces is
   the labelled data it will be trained on.
+
+**`RatioClustering`** answers a different question from all six: not which
+samples are alike, but which can share one design sized for the largest of them
+without wasting it — a connection type, a panel size, a stock length. It groups
+non-negative magnitudes so that every member carries at least a set share of its
+group's peak in every column, reading values as ratios (80 against 100 is the
+same gap as 8,000 against 10,000), and reports each group's peaks and the least
+share any member uses. It is a complete-linkage tree over the largest ratio gap,
+cut at one minus the share, so the count follows from the share. It was lifted
+out of the beam end plate grouping in StructuralDesign, because nothing in it
+knows what the columns are; which columns govern and how small is too small to
+matter stay with the caller.
 
 **`ClusterSelector`** fits k-means, the mixture and HDBSCAN, scores them, and picks the one the evidence
 supports, saying which and why. It takes a matrix that is *already prepared* and
@@ -77,15 +93,23 @@ counting it as one would punish HDBSCAN for the thing it exists to do. Both are
 also documented as what they are: compactness measures, useful for comparing
 partitions and actively misleading for comparing *algorithms*.
 
+`ClusterLabels` is what every result does with its labels once it has them —
+canonical numbering, the samples in each cluster, the inverse, the unplaced ones,
+the means — public so a toolkit holding labels from anywhere uses the same
+convention for unplaced samples instead of writing its own loop.
+
 `KMeans` is public in its own right but is also EM's seeder, and the partition
 step inside spectral clustering and message passing — there is one copy, and they
 all call it. A second would be a second thing to keep in step with the
 scikit-learn parity fixtures.
 
-Every method numbers its clusters largest first, ties to the lowest sample index,
-so a small change upstream does not permute them and shuffle every colour
-downstream. The one exception is `MessagePassing.Refine`, which keeps the numbers
-it was given — it adjusts an answer somebody already holds references to.
+Clusters are numbered largest first, ties to the lowest sample index, so a small
+change upstream does not permute them and shuffle every colour downstream. Two
+exceptions, both deliberate. `GaussianMixture.Fit` keeps EM's own component
+order, because `FitFrom` must stay comparable parameter for parameter with
+scikit-learn — `OrderedByWeight()` renumbers a fit by mixing weight, and the
+pipeline, the selector and the Grasshopper component all use it. And `MessagePassing.Refine` keeps the numbers
+it was given, because it adjusts an answer somebody already holds references to.
 
 ## Parity with scikit-learn and SciPy
 
@@ -130,7 +154,8 @@ toolkit whose question it answers.
 ```
 src/OtterLogic.Unsupervised/
   Clustering/            k-means, Gaussian mixture, HDBSCAN, spectral,
-                         hierarchical, message passing, affinity, quality measures
+                         hierarchical, message passing, ratio clustering,
+                         affinity, labels, quality measures
   Clustering/Selection/  fitting k-means, mixture and HDBSCAN and choosing between them
 python/                  development only - never ships, never installed by a user
   fixtures/              scikit-learn reference fixtures for the C# tests
@@ -138,8 +163,8 @@ tests/                   xunit; runs anywhere, no Rhino needed
 ```
 
 Nothing here touches a Rhino or Grasshopper API. The components live in
-[Rhino3D](https://github.com/Otter-Logic/Rhino3D), under the **Machine Learning**
-section.
+[Rhino3D](https://github.com/Otter-Logic/Rhino3D), under the **Unsupervised
+Learning** section.
 
 ## Dependencies
 

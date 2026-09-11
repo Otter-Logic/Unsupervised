@@ -66,6 +66,40 @@ public sealed class GaussianMixtureTests
     /// different groups from identical inputs is unusable, so the seed has to be
     /// the only source of randomness.
     /// </summary>
+    /// <summary>
+    /// Renumbering by weight is the same model under new numbers: weights,
+    /// means and responsibilities move together, and nothing else changes.
+    /// </summary>
+    [Fact]
+    public void OrderedByWeightRenumbersTheSameModel()
+    {
+        var x = Fixture.Load("em_diag").Matrix("x");
+        var fit = GaussianMixture.Fit(x, new GaussianMixtureOptions { Components = 4, Seed = 3 });
+
+        var ordered = fit.OrderedByWeight();
+
+        for (int c = 1; c < ordered.ComponentCount; c++)
+            Assert.True(ordered.MixingWeights[c] <= ordered.MixingWeights[c - 1]);
+
+        Assert.Equal(fit.LogLikelihood, ordered.LogLikelihood);
+        Assert.Equal(fit.Bic, ordered.Bic);
+
+        for (int c = 0; c < ordered.ComponentCount; c++)
+        {
+            int was = Array.IndexOf(fit.MixingWeights, ordered.MixingWeights[c]);
+            for (int j = 0; j < x.GetLength(1); j++)
+                Assert.Equal(fit.Means[was, j], ordered.Means[c, j]);
+            for (int i = 0; i < x.GetLength(0); i++)
+                Assert.Equal(fit.Responsibilities[i, was], ordered.Responsibilities[i, c]);
+            Assert.Same(fit.Covariances[was], ordered.Covariances[c]);
+        }
+
+        var before = fit.Labels();
+        var after = ordered.Labels();
+        for (int i = 0; i < before.Length; i++)
+            Assert.Equal(fit.MixingWeights[before[i]], ordered.MixingWeights[after[i]]);
+    }
+
     [Fact]
     public void IsDeterministicAcrossRepeatedFits()
     {

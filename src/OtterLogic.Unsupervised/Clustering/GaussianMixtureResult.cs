@@ -81,6 +81,9 @@ public sealed class GaussianMixtureResult
     /// <summary>Hard assignment of each sample to its most probable component.</summary>
     public int[] Labels() => Posterior.ArgMax(Responsibilities);
 
+    /// <summary>Sample indices in each component, by <see cref="Labels"/>.</summary>
+    public int[][] Clusters() => ClusterLabels.Members(Labels(), ComponentCount);
+
     /// <summary>
     /// The highest responsibility for each sample, between 1/k and 1.
     /// <para>
@@ -90,4 +93,51 @@ public sealed class GaussianMixtureResult
     /// </para>
     /// </summary>
     public double[] Confidence() => Posterior.RowMax(Responsibilities);
+
+    /// <summary>
+    /// The same fit with its components renumbered largest mixing weight first,
+    /// ties to the lower original number. Weights, means, covariances and
+    /// responsibilities move together; the likelihood and every diagnostic are
+    /// unchanged, because it is the same model.
+    /// <para>
+    /// <see cref="GaussianMixture.Fit"/> leaves components in the order EM
+    /// started them, which is the order the parity tests hold against
+    /// scikit-learn, so it stays. Anything that puts the numbers in front of a
+    /// user wants them stable instead — a small change upstream should not turn
+    /// component zero into component two and recolour everything downstream —
+    /// and the pipeline, the model selector and the Grasshopper component had
+    /// each written this renumbering out for themselves.
+    /// </para>
+    /// </summary>
+    public GaussianMixtureResult OrderedByWeight()
+    {
+        int k = ComponentCount;
+        int n = SampleCount;
+        int d = Means.GetLength(1);
+
+        var order = Enumerable.Range(0, k)
+            .OrderByDescending(c => MixingWeights[c])
+            .ThenBy(c => c)
+            .ToArray();
+
+        var means = new double[k, d];
+        for (int c = 0; c < k; c++)
+            for (int j = 0; j < d; j++)
+                means[c, j] = Means[order[c], j];
+
+        var responsibilities = new double[n, k];
+        for (int i = 0; i < n; i++)
+            for (int c = 0; c < k; c++)
+                responsibilities[i, c] = Responsibilities[i, order[c]];
+
+        return new GaussianMixtureResult(
+            order.Select(c => MixingWeights[c]).ToArray(),
+            means,
+            order.Select(c => Covariances[c]).ToArray(),
+            responsibilities,
+            LogLikelihood,
+            Iterations,
+            Converged,
+            ParameterCount);
+    }
 }

@@ -1,3 +1,5 @@
+using OtterLogic.MachineLearning.Distances;
+
 namespace OtterLogic.Unsupervised.Clustering;
 
 /// <summary>
@@ -133,24 +135,10 @@ public static class ClusterSelector
             }
         }
 
-        var mixture = best!;
-
-        // Number the clusters largest first, so a small change upstream does not
-        // permute them and shuffle every colour downstream.
-        int k2 = mixture.ComponentCount;
-        var order = Enumerable.Range(0, k2)
-            .OrderByDescending(c => mixture.MixingWeights[c])
-            .ThenBy(c => c)
-            .ToArray();
-
-        var rank = new int[k2];
-        for (int position = 0; position < k2; position++)
-            rank[order[position]] = position;
-
-        var raw = mixture.Labels();
-        var labels = new int[raw.Length];
-        for (int i = 0; i < raw.Length; i++)
-            labels[i] = rank[raw[i]];
+        // Largest first, so a small change upstream does not permute the
+        // clusters and shuffle every colour downstream.
+        var mixture = best!.OrderedByWeight();
+        var labels = mixture.Labels();
 
         return new ClusterCandidate(
             ClusteringModel.GaussianMixture,
@@ -261,7 +249,6 @@ public static class ClusterSelector
     private static double[] CentroidMargin(double[,] x, int[] labels, double[,] centroids)
     {
         int n = x.GetLength(0);
-        int d = x.GetLength(1);
         int k = centroids.GetLength(0);
 
         var margin = new double[n];
@@ -273,14 +260,7 @@ public static class ClusterSelector
 
             for (int c = 0; c < k; c++)
             {
-                double distance = 0.0;
-                for (int j = 0; j < d; j++)
-                {
-                    double delta = x[i, j] - centroids[c, j];
-                    distance += delta * delta;
-                }
-
-                distance = Math.Sqrt(distance);
+                double distance = Euclidean.Between(x, i, centroids, c);
 
                 if (c == labels[i])
                     own = distance;

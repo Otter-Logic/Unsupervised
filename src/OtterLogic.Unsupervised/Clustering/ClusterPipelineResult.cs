@@ -59,7 +59,10 @@ public sealed class ClusterPipelineResult
     /// <summary>Fraction of samples in each group, by mixing weight.</summary>
     public double[] GroupShares { get; }
 
-    /// <summary>The underlying fit, for BIC, log-likelihood and convergence.</summary>
+    /// <summary>
+    /// The underlying fit, for BIC, log-likelihood and convergence — its
+    /// components numbered as the groups are, largest first.
+    /// </summary>
     public GaussianMixtureResult Mixture { get; }
 
     /// <summary>The fitted decomposition, or null if PCA was skipped.</summary>
@@ -72,18 +75,7 @@ public sealed class ClusterPipelineResult
     public int InputColumnCount { get; }
 
     /// <summary>Sample indices bucketed by group, ready to drive geometry downstream.</summary>
-    public int[][] Groups()
-    {
-        int k = GroupShares.Length;
-        var buckets = new List<int>[k];
-        for (int c = 0; c < k; c++)
-            buckets[c] = new List<int>();
-
-        for (int i = 0; i < Labels.Length; i++)
-            buckets[Labels[i]].Add(i);
-
-        return buckets.Select(b => b.ToArray()).ToArray();
-    }
+    public int[][] Groups() => ClusterLabels.Members(Labels, GroupShares.Length);
 
     /// <summary>
     /// A short diagnostic block, meant to be wired straight to a panel. Reports

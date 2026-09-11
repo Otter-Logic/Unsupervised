@@ -96,7 +96,7 @@ public static class MessagePassing
         var embedding = Smooth(x, graph, options.Propagation);
         var partition = KMeans.Fit(embedding, options.KMeans);
 
-        var labels = Labelling.Canonical(partition.Labels, out var mapping);
+        var labels = ClusterLabels.Canonical(partition.Labels, out var mapping);
         int k = mapping.Count;
         int d = x.GetLength(1);
 
@@ -106,7 +106,7 @@ public static class MessagePassing
                 centroids[to, j] = partition.Centroids[from, j];
 
         return new MessagePassingResult(
-            labels, embedding, centroids, Labelling.Means(x, labels, k), partition.Inertia);
+            labels, embedding, centroids, ClusterLabels.Means(x, labels, k), partition.Inertia);
     }
 
     /// <summary>
@@ -145,7 +145,7 @@ public static class MessagePassing
                         $"Membership [{i}, {c}] is {responsibilities[i, c]}; memberships must be finite and non-negative.",
                         nameof(responsibilities));
 
-        var initial = ArgMaxOrNone(responsibilities);
+        var initial = Posterior.ArgMaxOrNone(responsibilities);
         var smoothed = Smooth(responsibilities, graph, options);
 
         // The symmetric normalisation does not preserve row sums — a well-connected
@@ -171,7 +171,7 @@ public static class MessagePassing
             }
         }
 
-        return new RefinementResult(refined, ArgMaxOrNone(refined), confidence, initial);
+        return new RefinementResult(refined, Posterior.ArgMaxOrNone(refined), confidence, initial);
     }
 
     /// <summary>
@@ -196,32 +196,5 @@ public static class MessagePassing
                 oneHot[i, labels[i]] = 1.0;
 
         return Refine(oneHot, graph, options);
-    }
-
-    /// <summary>Largest column per row, first on a tie, or -1 for a row with nothing in it.</summary>
-    private static int[] ArgMaxOrNone(double[,] memberships)
-    {
-        int n = memberships.GetLength(0);
-        int k = memberships.GetLength(1);
-        var labels = new int[n];
-
-        for (int i = 0; i < n; i++)
-        {
-            int best = -1;
-            double bestValue = 0.0;
-
-            for (int c = 0; c < k; c++)
-            {
-                if (memberships[i, c] > bestValue)
-                {
-                    bestValue = memberships[i, c];
-                    best = c;
-                }
-            }
-
-            labels[i] = best;
-        }
-
-        return labels;
     }
 }
