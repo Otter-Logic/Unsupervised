@@ -153,6 +153,71 @@ public static class ClusterLabels
     }
 
     /// <summary>
+    /// The labels with every unplaced sample dealt with by <paramref name="policy"/>.
+    /// Placed samples keep their labels, so a caller holding references to groups
+    /// by number still finds them where they were.
+    /// </summary>
+    /// <param name="labels">One label per sample, negative for unplaced. Not modified.</param>
+    /// <param name="data">
+    /// n x d, the space the groups were found in — needed by
+    /// <see cref="UnplacedPolicy.Nearest"/> only, and null is fine otherwise.
+    /// </param>
+    /// <param name="policy">What to do with them.</param>
+    public static int[] ResolveUnplaced(int[] labels, double[,]? data, UnplacedPolicy policy)
+    {
+        ArgumentNullException.ThrowIfNull(labels);
+
+        var resolved = (int[])labels.Clone();
+        var unplaced = Unplaced(labels);
+        if (policy == UnplacedPolicy.Leave || unplaced.Length == 0)
+            return resolved;
+
+        int groups = labels.Length == 0 ? 0 : Math.Max(labels.Max() + 1, 0);
+
+        // With no group to be nearest to, the only way to place everything is a
+        // group each — the same answer Own Group gives.
+        if (policy == UnplacedPolicy.OwnGroup || groups == 0)
+        {
+            foreach (int i in unplaced)
+                resolved[i] = groups++;
+
+            return resolved;
+        }
+
+        if (data is null)
+            throw new ArgumentNullException(nameof(data), "Filing unplaced samples with the nearest group needs the data the groups were found in.");
+        if (data.GetLength(0) != labels.Length)
+            throw new ArgumentException($"{labels.Length} labels for {data.GetLength(0)} rows.", nameof(data));
+
+        // Means of the placed samples only, so a sample being filed never pulls a
+        // mean toward itself or toward another unplaced sample filed before it.
+        var means = Means(data, labels, groups);
+        var populated = Members(labels, groups).Select(m => m.Length > 0).ToArray();
+
+        foreach (int i in unplaced)
+        {
+            int best = -1;
+            double bestDistance = double.PositiveInfinity;
+            for (int c = 0; c < groups; c++)
+            {
+                if (!populated[c])
+                    continue;
+
+                double distance = MachineLearning.Distances.Euclidean.Squared(data, i, means, c);
+                if (distance < bestDistance)
+                {
+                    bestDistance = distance;
+                    best = c;
+                }
+            }
+
+            resolved[i] = best;
+        }
+
+        return resolved;
+    }
+
+    /// <summary>
     /// Mean of the rows of <paramref name="x"/> in each cluster, unplaced rows
     /// excluded. A cluster with no rows keeps a mean of zero.
     /// </summary>

@@ -21,7 +21,8 @@ has, one layer up.
 
 ## What is here
 
-Seven clustering methods, and an eighth thing that chooses between three of them.
+Seven clustering methods, a selector that chooses between three of them, and a
+fusion that keeps several of them instead of choosing.
 
 | | Told how many? | Every sample placed? | Clusters on | Uses a graph? |
 |---|---|---|---|---|
@@ -71,8 +72,7 @@ non-negative magnitudes so that every member carries at least a set share of its
 group's peak in every column, reading values as ratios (80 against 100 is the
 same gap as 8,000 against 10,000), and reports each group's peaks and the least
 share any member uses. It is a complete-linkage tree over the largest ratio gap,
-cut at one minus the share, so the count follows from the share. It was lifted
-out of the beam end plate grouping in StructuralDesign, because nothing in it
+cut at one minus the share, so the count follows from the share. Nothing in it
 knows what the columns are; which columns govern and how small is too small to
 matter stay with the caller.
 
@@ -86,6 +86,31 @@ share.
 **`ClusterPipeline`** is the other shape of the same idea: preprocess, decompose,
 fit one named method, map the answer back. For a caller that already knows which
 method it wants.
+
+**`ConsensusClustering`** keeps several answers instead of choosing one. Given
+any labellings of the same samples, it fuses them by evidence accumulation: two
+samples belong together in proportion to how many views, by weight, put them
+together, and an unplaced sample abstains rather than voting itself apart. Each
+view's weight is scaled by how far the others agree with it, the tree is average
+linkage over the disagreement, and the count is the one with the longest lifetime —
+the widest range of thresholds giving that many groups. A silhouette is reported
+but decides nothing: samples sharing a label in every view sit at zero
+disagreement, so it always prefers the most groups allowed. Small groups can merge
+into the group they agree with most, connected to it when a graph is given. It
+runs on distinct label signatures rather than samples, which keeps an exact tree
+affordable over thousands of samples.
+
+**`MultiViewClustering`** is the fusion put to work for a caller with a graph and
+features: spectral clustering of the graph (count by eigengap), hierarchical
+clustering of features (count by silhouette — one method against itself, where a
+silhouette is fair) and HDBSCAN, fused. Which features go to which view is the
+caller's decision and is where all the meaning is; further labellings — a learned
+embedding's, a hand-corrected one — join as additional views.
+
+`ClusterAgreement` holds the adjusted Rand index, reading unplaced samples as
+groups of one, and `ClusterLabels.ResolveUnplaced` applies an `UnplacedPolicy` —
+leave them, a group each, or the nearest group — for callers that must place
+everything.
 
 `ClusterQuality` holds silhouette and Davies-Bouldin. Both exclude noise rather
 than scoring it as a cluster — noise is not a group and has no centre, and
@@ -144,10 +169,12 @@ reason.
 The line: if changing it would require knowing what a bending moment is, it does
 not belong here.
 
-**Combined tools.** A pipeline that runs spectral clustering for one purpose,
-refines it by message passing and cuts a hierarchy inside each group is a
-judgement about a discipline, built *from* these methods. It belongs in the
-toolkit whose question it answers.
+**Combined tools.** A pipeline that decides which features describe an element,
+which view reads them and what the groups are called is a judgement about a
+discipline, built *from* these methods. It belongs in the toolkit whose question
+it answers. `MultiViewClustering` is the mechanism such a tool runs on — it fuses
+whatever it is handed and knows nothing of what it was handed; StructuralDesign's
+Structural Insight Engine is the worked example of the judgement on top.
 
 ## Layout
 
@@ -157,6 +184,7 @@ src/OtterLogic.Unsupervised/
                          hierarchical, message passing, ratio clustering,
                          affinity, labels, quality measures
   Clustering/Selection/  fitting k-means, mixture and HDBSCAN and choosing between them
+  Clustering/Consensus/  fusing several clusterings, and the three-view engine built on it
 python/                  development only - never ships, never installed by a user
   fixtures/              scikit-learn reference fixtures for the C# tests
 tests/                   xunit; runs anywhere, no Rhino needed
