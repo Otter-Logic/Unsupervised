@@ -1,5 +1,6 @@
+using OtterLogic.Graphs;
 using OtterLogic.MachineLearning.Decomposition;
-using OtterLogic.MachineLearning.Graphs;
+using OtterLogic.MachineLearning.Distances;
 
 namespace OtterLogic.Unsupervised.Clustering;
 
@@ -51,7 +52,7 @@ public static class SpectralClustering
         int n = x.GetLength(0);
         options.Validate(n);
 
-        var graph = WeightedGraph.NearestNeighbours(x, Math.Min(options.Neighbours, n - 1));
+        var graph = NeighbourGraph.Of(x, Math.Min(options.Neighbours, n - 1));
         return Cluster(Affinity.Gaussian(graph, x), options);
     }
 

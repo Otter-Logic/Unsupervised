@@ -1,7 +1,8 @@
-using OtterLogic.MachineLearning.Graphs;
-using OtterLogic.Unsupervised.Clustering;
+using OtterLogic.Graphs;
+using OtterLogic.MachineLearning.Distances;
 using Xunit;
 using Xunit.Abstractions;
+using OtterLogic.Unsupervised.Clustering;
 
 namespace OtterLogic.Unsupervised.Tests;
 
@@ -30,7 +31,7 @@ public sealed class SpectralClusteringTests
         var expected = fixture.Section("expected");
         int k = fixture.Int("clusters");
 
-        var graph = WeightedGraph.NearestNeighbours(x, fixture.Int("neighbours"));
+        var graph = NeighbourGraph.Of(x, fixture.Int("neighbours"));
         var result = SpectralClustering.Fit(graph, new SpectralClusteringOptions { Clusters = k });
 
         double agreement = Numeric.AdjustedRandIndex(expected.Integers("labels"), result.Labels);

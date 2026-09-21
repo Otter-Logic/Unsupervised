@@ -1,5 +1,5 @@
+using OtterLogic.Graphs;
 using OtterLogic.MachineLearning.Distances;
-using OtterLogic.MachineLearning.Graphs;
 
 namespace OtterLogic.Unsupervised.Clustering;
 

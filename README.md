@@ -37,10 +37,11 @@ fusion that keeps several of them instead of choosing.
 They are not six implementations of one idea. Each assumes something different
 about what a cluster is, and which assumption holds is a property of the data.
 
-The three graph methods take a `WeightedGraph` from MachineLearning, which says
+The three graph methods take a `WeightedGraph` from
+[Graphs](https://github.com/Otter-Logic/Graphs), which says
 which samples are related. Where the edges come from is the caller's business — a
 toolkit that knows which of its elements touch builds the graph from that; a
-caller with only a point cloud uses `WeightedGraph.NearestNeighbours`. Every
+caller with only a point cloud uses MachineLearning's `NeighbourGraph.Of`. Every
 graph method has an overload taking both a graph and features, and that is the
 **connectivity plus behaviour** case: `Affinity.Gaussian` weights each edge by
 how alike its two ends are, so a strong edge means *related and alike*, and cuts
@@ -206,7 +207,8 @@ Learning** section.
 
 None, deliberately. An EM loop with log-sum-exp, a mutual-reachability MST, a
 nearest-neighbour chain and a propagation over sparse edges; MathNet would be
-carried for arithmetic that is already written here. The graph type and the
-leading-eigenvector solver spectral clustering needs live one layer down in
-MachineLearning, because a trained graph network will want the same ones. `Microsoft.ML.OnnxRuntime` arrives in MachineLearning when
+carried for arithmetic that is already written here. The leading-eigenvector
+solver spectral clustering needs lives one layer down in MachineLearning,
+because a trained graph network will want the same one, and the graph type lives
+below that in Graphs, because a toolkit wants it with no learning involved. `Microsoft.ML.OnnxRuntime` arrives in MachineLearning when
 inference does, and does not belong up here.
