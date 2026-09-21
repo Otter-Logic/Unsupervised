@@ -22,6 +22,9 @@ namespace OtterLogic.Unsupervised.Clustering;
 /// <item><b>Density</b> — <see cref="Hdbscan"/>, which finds dense regions and, as
 /// importantly, the samples in none. Those abstain from the vote rather than being
 /// forced to cast one.</item>
+/// <item><b>Profile</b>, when asked for — the hierarchical view's features widened by
+/// <see cref="NeighbourhoodProfile"/>, so samples group by the part they play among
+/// their neighbours rather than by what they are alone.</item>
 /// </list>
 /// <para>
 /// Which features go to which view is the caller's decision, and is where all the
@@ -83,6 +86,14 @@ public static class MultiViewClustering
             views.Add(new ClusterView("Hierarchical", hierarchical, options.HierarchicalWeight));
         }
 
+        int[]? profile = null;
+        if (options.ProfileWeight > 0.0)
+        {
+            var widened = NeighbourhoodProfile.Embed(hierarchyFeatures, connectivity, options.ProfileHops);
+            profile = Hierarchical(widened, options).Labels;
+            views.Add(new ClusterView("Profile", profile, options.ProfileWeight));
+        }
+
         HdbscanResult? density = null;
         if (options.DensityWeight > 0.0)
         {
@@ -106,7 +117,7 @@ public static class MultiViewClustering
         var consensus = ConsensusClustering.Fuse(views, connectivity, options.Consensus);
 
         return new MultiViewClusteringResult(
-            spectral, hierarchy, hierarchical, hierarchicalSilhouette, density, views, consensus, notes);
+            spectral, hierarchy, hierarchical, hierarchicalSilhouette, density, views, consensus, notes, profile);
     }
 
     /// <summary>

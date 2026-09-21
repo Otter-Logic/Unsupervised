@@ -19,8 +19,10 @@ public sealed class MultiViewClusteringResult
         HdbscanResult? density,
         IReadOnlyList<ClusterView> views,
         ConsensusResult consensus,
-        IReadOnlyList<string> notes)
+        IReadOnlyList<string> notes,
+        int[]? profileLabels = null)
     {
+        ProfileLabels = profileLabels;
         Spectral = spectral;
         Hierarchy = hierarchy;
         HierarchicalLabels = hierarchicalLabels;
@@ -49,7 +51,10 @@ public sealed class MultiViewClusteringResult
     /// <summary>The density view, with its noise. Null when skipped.</summary>
     public HdbscanResult? Density { get; }
 
-    /// <summary>Every labelling fused, in order: spectral, hierarchical, density, then any the caller added.</summary>
+    /// <summary>The profile view's labels — samples grouped by the part they play. Null when skipped.</summary>
+    public int[]? ProfileLabels { get; }
+
+    /// <summary>Every labelling fused, in order: spectral, hierarchical, density, profile, then any the caller added.</summary>
     public IReadOnlyList<ClusterView> Views { get; }
 
     /// <summary>The fused grouping.</summary>

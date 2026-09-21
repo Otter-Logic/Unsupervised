@@ -64,6 +64,14 @@ fall where related samples stop behaving alike.
   left unplaced, and reporting exactly which samples changed. A *learned* graph
   network is a trained model and belongs in DeepLearning; what this produces is
   the labelled data it will be trained on.
+- **`NeighbourhoodProfile`** asks the opposite question of the same graph. Message
+  passing and spectral clustering find *communities* — they pull connected samples
+  together, so their groups are regions. This finds *roles*: each sample's features
+  with the mean of its neighbours' appended beside them, hop by hop, rather than
+  blended in — so a hub keeps what it is, gains a record of its spokes, and groups
+  with every other hub however far away. It is an embedding, not a clustering;
+  `MultiViewClustering` clusters it as an optional fourth view, **Profile**, off
+  unless given a weight.
 
 **`RatioClustering`** answers a different question from all six: not which
 samples are alike, but which can share one design sized for the largest of them

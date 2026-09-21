@@ -30,6 +30,17 @@ public sealed record MultiViewClusteringOptions
     /// <summary>Vote of the density view — dense regions, and what sits outside them. Zero skips it.</summary>
     public double DensityWeight { get; init; } = 1.0;
 
+    /// <summary>
+    /// Vote of the profile view — samples that play the same part, wherever they are:
+    /// the hierarchical view's features widened by <see cref="NeighbourhoodProfile"/>
+    /// to take in each sample's surroundings, then clustered the same way. Zero, the
+    /// default, skips it, so a caller that never asks gets the three views it always had.
+    /// </summary>
+    public double ProfileWeight { get; init; }
+
+    /// <summary>How far out the profile view records each sample's surroundings.</summary>
+    public int ProfileHops { get; init; } = 2;
+
     /// <summary>Seed for the spectral view's eigensolver and k-means. Fixed, so a re-solve returns the same groups.</summary>
     public int Seed { get; init; } = 1;
 
@@ -56,9 +67,13 @@ public sealed record MultiViewClusteringOptions
                      (nameof(SpectralWeight), SpectralWeight),
                      (nameof(HierarchicalWeight), HierarchicalWeight),
                      (nameof(DensityWeight), DensityWeight),
+                     (nameof(ProfileWeight), ProfileWeight),
                  })
             if (!double.IsFinite(weight) || weight < 0.0)
                 throw new ArgumentOutOfRangeException(name, weight, "A view's weight must be finite and not negative.");
+
+        if (ProfileHops < 1)
+            throw new ArgumentOutOfRangeException(nameof(ProfileHops), ProfileHops, "The profile view needs at least one hop.");
 
         ArgumentNullException.ThrowIfNull(Consensus);
         Consensus.Validate(sampleCount);
