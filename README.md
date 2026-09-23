@@ -21,8 +21,9 @@ has, one layer up.
 
 ## What is here
 
-Seven clustering methods, a selector that chooses between three of them, and a
-fusion that keeps several of them instead of choosing.
+Seven clustering methods, a selector that chooses between three of them, a
+fusion that keeps several of them instead of choosing, and one call that runs
+any of them end to end for a component or a toolkit.
 
 | | Told how many? | Every sample placed? | Clusters on | Uses a graph? |
 |---|---|---|---|---|
@@ -95,6 +96,45 @@ share.
 **`ClusterPipeline`** is the other shape of the same idea: preprocess, decompose,
 fit one named method, map the answer back. For a caller that already knows which
 method it wants.
+
+### A method on a wire: `ClusteringMethod` and `ClusterRun`
+
+The shape the Grasshopper components use, and the one a toolkit calls when it
+wants exactly what a component does. A **`ClusteringMethod`** is an algorithm
+with its settings chosen and nothing else — `KMeansMethod { Clusters = 3 }`,
+`HdbscanMethod()`, `SpectralMethod { Neighbours = 6 }`, `HierarchicalMethod
+{ Linkage = Linkage.Average }`, `GaussianMixtureMethod { Covariance = CovarianceType.Full }`,
+or `AutoMethod`, which is `ClusterSelector` made into a method. It is a record,
+so two with the same settings are equal and one can be copied with one setting
+changed; each wraps the algorithm's own options record rather than replacing it,
+so the algorithm's entry point stays the one every test calls. Adding an
+algorithm is one record here and one small component in Rhino3D. The component
+that holds the data never changes.
+
+**`ClusterRun.Fit(data, method, options)`** is the one call that data component
+makes. It standardises (dropping a constant column with a remark), validates the
+method against the sample count, fits, and reads the answer back for a person:
+centres in the units the samples arrived in over every column, a silhouette and
+Davies-Bouldin in the space the fit was made in, an optional 2D or 3D map, an
+optional `GroupSignature` of what sets each cluster apart, and a `Report()` a
+user can read without wiring anything else. A null method means `AutoMethod`.
+
+Every method keeps the same promise, and it is what lets the data component be
+written once:
+
+- **Labels are numbered largest first from zero.** A small change upstream does
+  not permute the clusters and shuffle every colour downstream.
+- **`-1` is a sample in no cluster.** Only a method that genuinely declines to
+  place samples — HDBSCAN, spectral on an isolated sample — ever produces one,
+  and `Unplaced()` lists them.
+- **Confidence is honest or absent.** A mixture's posterior, a centre-based
+  method's margin, HDBSCAN's stability — each between zero and one — or `null`
+  where the method has no such number (a cut tree says which side of a merge a
+  sample fell, not how nearly it fell the other way). A made-up number would be
+  read as if it were honest, which is worse than none.
+- **Notes carry a level.** Every `OtterLogic.Core.Note` is a `Remark` (worth
+  knowing, nothing to fix) or a `Warning` (the answer stands but is weaker than
+  it looks), so each front-end maps it onto what it has rather than parsing text.
 
 **`ConsensusClustering`** keeps several answers instead of choosing one. Given
 any labellings of the same samples, it fuses them by evidence accumulation: two
@@ -192,6 +232,8 @@ src/OtterLogic.Unsupervised/
   Clustering/            k-means, Gaussian mixture, HDBSCAN, spectral,
                          hierarchical, message passing, ratio clustering,
                          affinity, labels, quality measures
+  Clustering/Methods/    every algorithm as a settings record with one Fit, and the
+                         one call that standardises, fits and reads the answer back
   Clustering/Selection/  fitting k-means, mixture and HDBSCAN and choosing between them
   Clustering/Consensus/  fusing several clusterings, and the three-view engine built on it
 python/                  development only - never ships, never installed by a user

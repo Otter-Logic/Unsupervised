@@ -92,6 +92,48 @@ internal static class Synthetic
         return (WeightedGraph.FromEdges(n, edges), x, truth);
     }
 
+    /// <summary>
+    /// Well-separated Gaussian blobs of unequal size, for the methods that work on
+    /// features alone. The sizes are unequal on purpose: largest-first numbering is
+    /// only testable when the clusters can be told apart by size, and equal blobs
+    /// would let any permutation pass.
+    /// </summary>
+    /// <param name="sizes">Samples per blob, in the order the truth labels use.</param>
+    /// <param name="spread">Standard deviation of each blob, against centres spaced <paramref name="separation"/> apart.</param>
+    internal static (double[,] X, int[] Truth) Blobs(
+        int[]? sizes = null, int dimensions = 2, double spread = 0.15, double separation = 4.0, int seed = 29)
+    {
+        sizes ??= new[] { 50, 40, 30 };
+        var rng = new Random(seed);
+        int n = sizes.Sum();
+        var truth = new int[n];
+        var x = new double[n, dimensions];
+
+        // Centres on the corners of a simplex-like layout: each blob pushed along
+        // its own axis (wrapping when there are more blobs than axes) so that no
+        // two share a centre and every pair is at least `separation` apart.
+        var centres = new double[sizes.Length, dimensions];
+        for (int c = 0; c < sizes.Length; c++)
+        {
+            centres[c, c % dimensions] = separation * (1 + c / dimensions);
+            if (dimensions > 1)
+                centres[c, (c + 1) % dimensions] = 0.5 * separation * (c % 2);
+        }
+
+        int row = 0;
+        for (int c = 0; c < sizes.Length; c++)
+        {
+            for (int s = 0; s < sizes[c]; s++, row++)
+            {
+                truth[row] = c;
+                for (int j = 0; j < dimensions; j++)
+                    x[row, j] = centres[c, j] + spread * Gaussian(rng);
+            }
+        }
+
+        return (x, truth);
+    }
+
     /// <summary>Whether every cluster in <paramref name="labels"/> is one connected piece of the graph.</summary>
     internal static bool EveryClusterIsConnected(WeightedGraph graph, int[] labels)
     {

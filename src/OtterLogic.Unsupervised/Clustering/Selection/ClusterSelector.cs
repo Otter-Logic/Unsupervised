@@ -85,7 +85,7 @@ public static class ClusterSelector
         }
 
         var labels = bestLabels!;
-        var confidence = CentroidMargin(x, labels, bestCentroids!);
+        var confidence = CentroidMargin.Of(x, labels, bestCentroids!);
 
         return new ClusterCandidate(
             ClusteringModel.KMeans,
@@ -236,42 +236,6 @@ public static class ClusterSelector
             $"clusters are clean and well separated (silhouette {kMeans.Silhouette:0.00}, "
             + $"{mixture.AmbiguousFraction:P0} of samples on a boundary), so the simplest model is "
             + "the honest one.");
-    }
-
-    /// <summary>
-    /// Confidence for a hard partition: how much closer a sample is to its own
-    /// centre than to the next nearest, scaled to 0..1.
-    /// <para>
-    /// k-means has no probability to report, but it does know whether a sample
-    /// was a close call. Zero means the two nearest centres are equidistant.
-    /// </para>
-    /// </summary>
-    private static double[] CentroidMargin(double[,] x, int[] labels, double[,] centroids)
-    {
-        int n = x.GetLength(0);
-        int k = centroids.GetLength(0);
-
-        var margin = new double[n];
-
-        for (int i = 0; i < n; i++)
-        {
-            double own = double.MaxValue;
-            double other = double.MaxValue;
-
-            for (int c = 0; c < k; c++)
-            {
-                double distance = Euclidean.Between(x, i, centroids, c);
-
-                if (c == labels[i])
-                    own = distance;
-                else if (distance < other)
-                    other = distance;
-            }
-
-            margin[i] = other is double.MaxValue or 0.0 ? 1.0 : Math.Clamp((other - own) / other, 0.0, 1.0);
-        }
-
-        return margin;
     }
 
     private static int Groups(int[] labels)
