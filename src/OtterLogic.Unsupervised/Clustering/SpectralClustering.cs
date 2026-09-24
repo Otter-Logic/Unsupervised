@@ -105,45 +105,17 @@ public static class SpectralClustering
             throw new ArgumentException(
                 $"Only {m} of {n} samples have any edges, too few for {k} clusters.", nameof(affinity));
 
-        var graph = m == n ? affinity : Subgraph(affinity, placed);
-        graph.ConnectedComponents(out int components);
+        // The map itself — the shifted operator, the eigensolve, the random-walk
+        // scaling — lives one layer down in SpectralEmbedding, where a component
+        // that only wants to look at the map and a graph model that wants it as an
+        // input read exactly what k-means partitions here. Moved down in 2026-09
+        // with no expected value changing; the fixtures hold it to that.
+        var spectral = SpectralEmbedding.Of(affinity, k, options.Seed, EigenTolerance);
 
-        // The normalised adjacency has eigenvalues in [-1, 1]; the ones wanted are
-        // the largest. Shifting by the identity and halving maps that onto [0, 1]
-        // without moving any eigenvector, and makes the operator positive
-        // semi-definite — so largest in value and largest in magnitude agree, and
-        // a strongly bipartite piece of graph, with eigenvalues near -1, cannot
-        // crowd out the ones near +1.
-        double[,] Multiply(double[,] block)
-        {
-            var y = graph.Propagate(block, selfWeight: 0.0);
-            for (int i = 0; i < y.GetLength(0); i++)
-                for (int c = 0; c < y.GetLength(1); c++)
-                    y[i, c] = 0.5 * (y[i, c] + block[i, c]);
-
-            return y;
-        }
-
-        int wanted = Math.Min(k + 1, m);
-        var (values, vectors, iterations, converged) =
-            LeadingEigen.Solve(m, Multiply, wanted, options.Seed, EigenTolerance);
-
-        // Back from the shifted adjacency to the Laplacian: L = I - A_norm, and
-        // the shift made each value (1 + a) / 2, so the Laplacian's is 2 - 2v.
-        var eigenvalues = values.Select(v => Math.Clamp(2.0 - 2.0 * v, 0.0, 2.0)).ToArray();
-
-        // Divide by the square root of degree to turn the symmetric Laplacian's
-        // eigenvectors into the random-walk Laplacian's — scikit-learn's
-        // embedding, and von Luxburg's recommendation. Without it a
-        // low-degree sample on a cluster's fringe sits nearer the origin than its
-        // cluster does, and k-means can file it with the wrong one.
         var embedded = new double[m, k];
         for (int i = 0; i < m; i++)
-        {
-            double scale = 1.0 / Math.Sqrt(graph.Degree(i));
             for (int c = 0; c < k; c++)
-                embedded[i, c] = vectors[i, c] * scale;
-        }
+                embedded[i, c] = spectral.Coordinates[placed[i], c];
 
         var partition = KMeans.Fit(embedded, new KMeansOptions
         {
@@ -154,33 +126,13 @@ public static class SpectralClustering
 
         var raw = new int[n];
         Array.Fill(raw, -1);
-        var embedding = new double[n, k];
-
         for (int i = 0; i < m; i++)
-        {
             raw[placed[i]] = partition.Labels[i];
-            for (int c = 0; c < k; c++)
-                embedding[placed[i], c] = embedded[i, c];
-        }
 
         var labels = ClusterLabels.Canonical(raw, out var mapping);
 
         return new SpectralClusteringResult(
-            labels, mapping.Count, embedding, eigenvalues, components,
-            partition.Inertia, iterations, converged);
-    }
-
-    /// <summary>The graph restricted to <paramref name="nodes"/>, renumbered 0..m-1 in the same order.</summary>
-    private static WeightedGraph Subgraph(WeightedGraph graph, int[] nodes)
-    {
-        var index = new Dictionary<int, int>(nodes.Length);
-        for (int i = 0; i < nodes.Length; i++)
-            index[nodes[i]] = i;
-
-        var edges = graph.Edges()
-            .Where(e => index.ContainsKey(e.A) && index.ContainsKey(e.B))
-            .Select(e => (index[e.A], index[e.B], e.Weight));
-
-        return WeightedGraph.FromEdges(nodes.Length, edges);
+            labels, mapping.Count, spectral.Coordinates, spectral.Eigenvalues, spectral.GraphComponents,
+            partition.Inertia, spectral.Iterations, spectral.Converged);
     }
 }
